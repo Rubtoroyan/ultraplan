@@ -7,6 +7,10 @@ on:
     # two consecutive missed runs. Minute 17 avoids GitHub's congested
     # top-of-hour scheduling window.
     - cron: '17 0 */2 * *'
+    # Monthly on the 1st at 06:23 UTC: commit a timestamp so the repo never
+    # goes 60 days without activity (GitHub auto-disables scheduled workflows
+    # in inactive repos, which would silently stop the ping above).
+    - cron: '23 6 1 * *'
   workflow_dispatch:
 
 jobs:
@@ -33,3 +37,22 @@ jobs:
             2*) echo "Keep-alive OK — last_ping set to $now" ;;
             *)  echo "::error::Keep-alive ping failed with HTTP $status"; exit 1 ;;
           esac
+
+  repo-activity:
+    # Runs on the monthly schedule, or on manual dispatch.
+    if: github.event_name == 'workflow_dispatch' || github.event.schedule == '23 6 1 * *'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Commit timestamp to keep the repository active
+        run: |
+          date -u +'%Y-%m-%dT%H:%M:%SZ' > .github/last-keepalive.txt
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add .github/last-keepalive.txt
+          git commit -m 'chore: keep-alive timestamp'
+          git pull --rebase origin "${GITHUB_REF_NAME}"
+          git push origin "HEAD:${GITHUB_REF_NAME}"
