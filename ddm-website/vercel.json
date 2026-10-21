@@ -1,5 +1,6 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
+  "ignoreCommand": "[ \"$(git diff --name-only HEAD^ HEAD)\" = \".github/last-keepalive.txt\" ]",
   "crons": [
     {
       "path": "/api/keepalive",
